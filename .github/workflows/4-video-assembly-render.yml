@@ -1,0 +1,82 @@
+name: "4 - Video Assembly and Render"
+
+# Combines images + audio into a full video, runs QC, and prepares YouTube metadata.
+on:
+  workflow_dispatch:
+    inputs:
+      planning_run_id:
+        description: "Run ID from workflow '1 - Content Planning'"
+        required: true
+        type: string
+
+jobs:
+  assemble-and-render:
+    name: Assemble, Render & QC
+    runs-on: ubuntu-latest
+    timeout-minutes: 240   # 4 hours — long videos take time to render
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install system dependencies (ffmpeg + fonts)
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y ffmpeg fonts-dejavu-core
+
+      - name: Install Python dependencies
+        run: pip install -r requirements.txt
+
+      - name: Download approved script
+        uses: actions/download-artifact@v4
+        with:
+          name: approved-script-${{ inputs.planning_run_id }}
+          path: output/script/
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Download visual assets
+        uses: actions/download-artifact@v4
+        with:
+          name: visual-assets-${{ inputs.planning_run_id }}
+          path: output/assets/
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Download voiceover assets
+        uses: actions/download-artifact@v4
+        with:
+          name: voiceover-assets-${{ inputs.planning_run_id }}
+          path: output/audio/
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Assemble video
+        run: python scripts/assemble_video.py
+
+      - name: Run quality checks
+        run: python scripts/quality_check.py
+
+      - name: Prepare YouTube metadata
+        run: python scripts/prepare_metadata.py
+
+      - name: Upload rendered video and metadata
+        uses: actions/upload-artifact@v4
+        with:
+          name: rendered-video-${{ inputs.planning_run_id }}
+          path: output/video/
+          retention-days: 7   # keep 7 days — upload promptly
+
+      - name: Print next step instructions
+        run: |
+          echo "============================================================"
+          echo "Video rendered and quality checked!"
+          echo "Planning Run ID: ${{ inputs.planning_run_id }}"
+          echo ""
+          echo "NEXT STEP:"
+          echo "Trigger workflow '5 - Upload and Publish' with:"
+          echo "  planning_run_id = ${{ inputs.planning_run_id }}"
+          echo "  visibility      = public | unlisted | private"
+          echo "============================================================"

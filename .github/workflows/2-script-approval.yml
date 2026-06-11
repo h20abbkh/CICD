@@ -1,0 +1,68 @@
+name: "2 - Script Approval"
+
+# Human reviews the generated script then triggers this workflow to approve.
+# The 'script-approval' GitHub environment can be configured with required reviewers
+# for an extra manual gate before assets are generated.
+on:
+  workflow_dispatch:
+    inputs:
+      planning_run_id:
+        description: "Run ID from workflow '1 - Content Planning'"
+        required: true
+        type: string
+      approved:
+        description: "Approve the script to proceed to asset generation?"
+        required: true
+        default: "true"
+        type: boolean
+
+jobs:
+  approve-script:
+    name: Review & Approve Script
+    runs-on: ubuntu-latest
+    environment: script-approval   # configure required reviewers in repo Settings > Environments
+    timeout-minutes: 15
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Download script artifact from planning run
+        uses: actions/download-artifact@v4
+        with:
+          name: video-script-${{ inputs.planning_run_id }}
+          path: output/script/
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          run-id: ${{ inputs.planning_run_id }}
+
+      - name: Show script summary
+        run: |
+          echo "===== SCRIPT SUMMARY ====="
+          cat output/script/script_readable.txt | head -60
+          echo "=========================="
+
+      - name: Validate approval decision
+        run: |
+          if [ "${{ inputs.approved }}" != "true" ]; then
+            echo "❌ Script rejected. Pipeline stopped."
+            exit 1
+          fi
+          echo "✅ Script approved. Proceeding to asset generation."
+
+      - name: Re-upload approved script for downstream workflows
+        uses: actions/upload-artifact@v4
+        with:
+          name: approved-script-${{ inputs.planning_run_id }}
+          path: output/script/
+          retention-days: 30
+
+      - name: Print next step instructions
+        run: |
+          echo "============================================================"
+          echo "Script APPROVED!"
+          echo "Planning Run ID: ${{ inputs.planning_run_id }}"
+          echo ""
+          echo "NEXT STEP:"
+          echo "Trigger workflow '3 - Asset and Voice Generation' with:"
+          echo "  planning_run_id = ${{ inputs.planning_run_id }}"
+          echo "============================================================"

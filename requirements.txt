@@ -1,0 +1,13 @@
+# Core AI / API clients
+openai>=1.0.0
+
+# YouTube Data API
+google-api-python-client>=2.100.0
+google-auth-httplib2>=0.2.0
+google-auth-oauthlib>=1.2.0
+
+# Image processing (thumbnails, placeholders)
+pillow>=10.0.0
+
+# HTTP (downloading DALL-E images)
+requests>=2.31.0

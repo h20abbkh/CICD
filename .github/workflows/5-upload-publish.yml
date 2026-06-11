@@ -1,0 +1,69 @@
+name: "5 - Upload and Publish"
+
+# Final stage: uploads the rendered video to YouTube.
+# The 'youtube-publish' environment adds an extra manual approval gate
+# so a human can verify the video before it goes public.
+on:
+  workflow_dispatch:
+    inputs:
+      planning_run_id:
+        description: "Run ID from workflow '1 - Content Planning'"
+        required: true
+        type: string
+      visibility:
+        description: "YouTube visibility"
+        required: true
+        default: "unlisted"
+        type: choice
+        options:
+          - public
+          - unlisted
+          - private
+
+jobs:
+  upload-to-youtube:
+    name: Upload to YouTube
+    runs-on: ubuntu-latest
+    environment: youtube-publish   # configure required reviewers in repo Settings > Environments
+    timeout-minutes: 60
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install dependencies
+        run: pip install -r requirements.txt
+
+      - name: Download rendered video and metadata
+        uses: actions/download-artifact@v4
+        with:
+          name: rendered-video-${{ inputs.planning_run_id }}
+          path: output/video/
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Upload to YouTube
+        env:
+          YOUTUBE_CLIENT_ID: ${{ secrets.YOUTUBE_CLIENT_ID }}
+          YOUTUBE_CLIENT_SECRET: ${{ secrets.YOUTUBE_CLIENT_SECRET }}
+          YOUTUBE_REFRESH_TOKEN: ${{ secrets.YOUTUBE_REFRESH_TOKEN }}
+          VIDEO_VISIBILITY: ${{ inputs.visibility }}
+        run: python scripts/upload_youtube.py
+
+      - name: Upload run summary artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: upload-summary-${{ inputs.planning_run_id }}
+          path: output/upload_summary.json
+          retention-days: 90
+
+      - name: Show video URL
+        run: |
+          echo "============================================================"
+          echo "🎬 Video published successfully!"
+          cat output/upload_summary.json
+          echo "============================================================"
