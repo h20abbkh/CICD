@@ -17,6 +17,7 @@ Writes:
 import json
 import os
 import sys
+import time
 from pathlib import Path
 
 from google.auth.transport.requests import Request
@@ -38,6 +39,11 @@ SCOPES = ["https://www.googleapis.com/auth/youtube.upload"]
 
 
 def get_youtube_client():
+    required = ["YOUTUBE_CLIENT_ID", "YOUTUBE_CLIENT_SECRET", "YOUTUBE_REFRESH_TOKEN"]
+    missing = [k for k in required if not os.environ.get(k)]
+    if missing:
+        print(f"❌ Missing required env vars: {', '.join(missing)}", file=sys.stderr)
+        sys.exit(1)
     creds = Credentials(
         token=None,
         refresh_token=os.environ["YOUTUBE_REFRESH_TOKEN"],
@@ -46,8 +52,12 @@ def get_youtube_client():
         token_uri="https://oauth2.googleapis.com/token",
         scopes=SCOPES,
     )
-    creds.refresh(Request())
-    return build(YOUTUBE_API_SERVICE, YOUTUBE_API_VERSION, credentials=creds)
+    try:
+        creds.refresh(Request())
+        return build(YOUTUBE_API_SERVICE, YOUTUBE_API_VERSION, credentials=creds)
+    except Exception as exc:
+        print(f"❌ YouTube authentication failed: {exc}", file=sys.stderr)
+        sys.exit(1)
 
 
 def upload_video(youtube, metadata: dict, video_path: str, visibility: str) -> dict:
@@ -78,13 +88,22 @@ def upload_video(youtube, metadata: dict, video_path: str, visibility: str) -> d
     request = youtube.videos().insert(part="snippet,status", body=body, media_body=media)
     response = None
     last_pct = -1
+    retries = 0
     while response is None:
-        status, response = request.next_chunk()
-        if status:
-            pct = int(status.progress() * 100)
-            if pct >= last_pct + 10:
-                print(f"  Upload progress: {pct}%")
-                last_pct = pct
+        try:
+            status, response = request.next_chunk()
+            if status:
+                pct = int(status.progress() * 100)
+                if pct >= last_pct + 10:
+                    print(f"  Upload progress: {pct}%")
+                    last_pct = pct
+        except Exception as exc:
+            retries += 1
+            if retries > 3:
+                raise RuntimeError(f"upload failed after retries: {exc}") from exc
+            wait_seconds = 2 ** retries
+            print(f"  transient upload error, retrying in {wait_seconds}s...")
+            time.sleep(wait_seconds)
 
     print("  Upload complete ✅")
     return response
@@ -101,6 +120,9 @@ def upload_thumbnail(youtube, video_id: str, thumbnail_path: str):
 
 def main():
     visibility = os.environ.get("VIDEO_VISIBILITY", "unlisted")
+    if visibility not in {"public", "unlisted", "private"}:
+        print("❌ VIDEO_VISIBILITY must be one of: public, unlisted, private", file=sys.stderr)
+        sys.exit(1)
 
     for path, label in [(VIDEO_PATH, "Video"), (METADATA_PATH, "Metadata")]:
         if not Path(path).exists():
@@ -108,12 +130,20 @@ def main():
             sys.exit(1)
 
     metadata = load_json(METADATA_PATH)
+    for key in ["title", "description"]:
+        if key not in metadata or not metadata[key]:
+            print(f"❌ Metadata missing required key: {key}", file=sys.stderr)
+            sys.exit(1)
     print(f"Uploading to YouTube ({visibility})…")
     print(f"  Title: {metadata['title']}")
 
     youtube = get_youtube_client()
 
-    response = upload_video(youtube, metadata, VIDEO_PATH, visibility)
+    try:
+        response = upload_video(youtube, metadata, VIDEO_PATH, visibility)
+    except Exception as exc:
+        print(f"❌ Upload failed: {exc}", file=sys.stderr)
+        sys.exit(1)
     video_id = response["id"]
     video_url = f"https://www.youtube.com/watch?v={video_id}"
 
@@ -135,9 +165,11 @@ def main():
     # Expose outputs to GitHub Actions
     github_output = os.environ.get("GITHUB_OUTPUT", "")
     if github_output:
+        def _escape_output(value: str) -> str:
+            return value.replace("%", "%25").replace("\n", "%0A").replace("\r", "%0D")
         with open(github_output, "a") as f:
-            f.write(f"video_url={video_url}\n")
-            f.write(f"video_id={video_id}\n")
+            f.write(f"video_url={_escape_output(video_url)}\n")
+            f.write(f"video_id={_escape_output(video_id)}\n")
 
     print(f"\n✅ Published successfully!")
     print(f"   URL        : {video_url}")

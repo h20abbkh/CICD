@@ -143,11 +143,22 @@ def write_readable_script(script, path):
 # ---------------------------------------------------------------------------
 
 def main():
-    client = OpenAI(api_key=os.environ["OPENAI_API_KEY"])
+    api_key = os.environ.get("OPENAI_API_KEY")
+    if not api_key:
+        print("ERROR: OPENAI_API_KEY is required.", file=sys.stderr)
+        sys.exit(1)
+    client = OpenAI(api_key=api_key)
 
-    topic = os.environ["VIDEO_TOPIC"]
+    topic = os.environ.get("VIDEO_TOPIC")
+    if not topic:
+        print("ERROR: VIDEO_TOPIC is required.", file=sys.stderr)
+        sys.exit(1)
     audience = os.environ.get("TARGET_AUDIENCE", "general public")
-    duration_minutes = int(os.environ.get("DURATION_MINUTES", "45"))
+    try:
+        duration_minutes = int(os.environ.get("DURATION_MINUTES", "45"))
+    except ValueError:
+        print("ERROR: DURATION_MINUTES must be an integer.", file=sys.stderr)
+        sys.exit(1)
     tone = os.environ.get("VIDEO_TONE", "educational")
     style = os.environ.get("VISUAL_STYLE", "minimalist")
     voice_type = os.environ.get("VOICE_TYPE", "nova")
@@ -155,7 +166,8 @@ def main():
     upload_description = os.environ.get("UPLOAD_DESCRIPTION", "")
 
     if not (30 <= duration_minutes <= 60):
-        print(f"WARNING: duration_minutes={duration_minutes} is outside 30-60 min range.")
+        print("ERROR: DURATION_MINUTES must be between 30 and 60.", file=sys.stderr)
+        sys.exit(1)
 
     ensure_dir(OUTPUT_DIR)
 
@@ -173,7 +185,14 @@ def main():
         response_format={"type": "json_object"},
         temperature=0.7,
     )
-    outline_data = json.loads(outline_resp.choices[0].message.content)
+    try:
+        outline_data = json.loads(outline_resp.choices[0].message.content)
+    except json.JSONDecodeError as exc:
+        print(f"ERROR: invalid outline JSON response: {exc}", file=sys.stderr)
+        sys.exit(1)
+    if not isinstance(outline_data, dict):
+        print("ERROR: outline response is not an object.", file=sys.stderr)
+        sys.exit(1)
 
     # ---- Step 2: scenes ----
     print("[2/2] Generating detailed scenes...")
@@ -189,8 +208,15 @@ def main():
         temperature=0.7,
         max_tokens=8000,
     )
-    scenes_raw = json.loads(scenes_resp.choices[0].message.content)
+    try:
+        scenes_raw = json.loads(scenes_resp.choices[0].message.content)
+    except json.JSONDecodeError as exc:
+        print(f"ERROR: invalid scenes JSON response: {exc}", file=sys.stderr)
+        sys.exit(1)
     scenes = scenes_raw if isinstance(scenes_raw, list) else scenes_raw.get("scenes", [])
+    if not isinstance(scenes, list) or not scenes:
+        print("ERROR: scenes response is empty or invalid.", file=sys.stderr)
+        sys.exit(1)
 
     total_seconds = sum(s.get("estimated_duration_seconds", 90) for s in scenes)
     chapters = calculate_chapters(scenes)

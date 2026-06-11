@@ -15,6 +15,7 @@ import os
 import sys
 import time
 from pathlib import Path
+from tempfile import NamedTemporaryFile
 
 import requests
 from openai import OpenAI
@@ -81,11 +82,22 @@ def generate_dalle_image(client: OpenAI, scene: dict, output_path: str, style: s
     )
 
     image_url = response.data[0].url
-    img_data = requests.get(image_url, timeout=60)
-    img_data.raise_for_status()
-
-    with open(output_path, "wb") as f:
-        f.write(img_data.content)
+    last_exc = None
+    for attempt in range(3):
+        try:
+            img_data = requests.get(image_url, timeout=60)
+            img_data.raise_for_status()
+            with NamedTemporaryFile(delete=False, dir=str(Path(output_path).parent), suffix=".tmp") as tmp:
+                tmp.write(img_data.content)
+                temp_path = tmp.name
+            Path(temp_path).replace(output_path)
+            break
+        except requests.RequestException as exc:
+            last_exc = exc
+            if attempt < 2:
+                time.sleep(2 ** attempt)
+            else:
+                raise last_exc
 
     # Normalise to 1920x1080
     img = Image.open(output_path).resize((OUTPUT_WIDTH, OUTPUT_HEIGHT), Image.LANCZOS)
@@ -93,22 +105,36 @@ def generate_dalle_image(client: OpenAI, scene: dict, output_path: str, style: s
 
 
 def main():
-    script = load_json(SCRIPT_PATH)
+    try:
+        script = load_json(SCRIPT_PATH)
+    except (FileNotFoundError, json.JSONDecodeError) as exc:
+        print(f"ERROR: failed to load {SCRIPT_PATH}: {exc}", file=sys.stderr)
+        sys.exit(1)
     scenes = script["scenes"]
     style = script.get("style", "minimalist")
+    if not isinstance(scenes, list) or not scenes:
+        print("ERROR: script.json must include a non-empty scenes list.", file=sys.stderr)
+        sys.exit(1)
 
     ensure_dir(ASSETS_DIR)
 
     mode = "placeholder" if USE_PLACEHOLDERS else "DALL-E 3"
     print(f"Generating {len(scenes)} scene images ({mode})…")
 
-    client = None if USE_PLACEHOLDERS else OpenAI(api_key=os.environ["OPENAI_API_KEY"])
+    api_key = os.environ.get("OPENAI_API_KEY")
+    if not USE_PLACEHOLDERS and not api_key:
+        print("ERROR: OPENAI_API_KEY is required when placeholders are disabled.", file=sys.stderr)
+        sys.exit(1)
+    client = None if USE_PLACEHOLDERS else OpenAI(api_key=api_key)
 
     metadata = {}
     failed = []
 
     for scene in scenes:
-        n = scene["scene_number"]
+        n = scene.get("scene_number")
+        if not isinstance(n, int) or n <= 0:
+            print(f"ERROR: invalid scene_number in scene: {scene}", file=sys.stderr)
+            sys.exit(1)
         out = f"{ASSETS_DIR}/scene_{n:03d}.png"
 
         if Path(out).exists():

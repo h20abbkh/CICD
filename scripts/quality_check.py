@@ -42,7 +42,12 @@ def ffprobe_json(path: str) -> dict:
          "-of", "json", path],
         capture_output=True, text=True,
     )
-    return json.loads(r.stdout or "{}")
+    if r.returncode != 0:
+        raise RuntimeError(r.stderr.strip() or "ffprobe failed")
+    try:
+        return json.loads(r.stdout or "{}")
+    except json.JSONDecodeError as exc:
+        raise RuntimeError(f"ffprobe returned invalid JSON: {exc}") from exc
 
 
 def main():
@@ -67,16 +72,26 @@ def main():
     target_min = script.get("duration_minutes", 45)
 
     # 1. File exists
-    if not check("video_exists", Path(VIDEO_PATH).exists(),
-                 f"File exists at {VIDEO_PATH}"):
-        save_json({"overall": "FAIL", "checks": checks}, REPORT_PATH)
-        sys.exit(1)
+    video_exists = Path(VIDEO_PATH).exists()
+    check("video_exists", video_exists, f"File exists at {VIDEO_PATH}")
 
     # 2. Probe video
-    info = ffprobe_json(VIDEO_PATH)
-    duration_s = float(info.get("format", {}).get("duration", 0))
-    duration_min = duration_s / 60
-    size_mb = int(info.get("format", {}).get("size", 0)) / (1024 * 1024)
+    info = {"format": {}, "streams": []}
+    duration_s = 0.0
+    duration_min = 0.0
+    size_mb = 0.0
+    if video_exists:
+        try:
+            info = ffprobe_json(VIDEO_PATH)
+        except RuntimeError as exc:
+            check("ffprobe_readable", False, str(exc))
+        duration_s = float(info.get("format", {}).get("duration") or 0)
+        duration_min = duration_s / 60
+        size_raw = info.get("format", {}).get("size")
+        size_mb = int(size_raw) / (1024 * 1024) if size_raw else 0.0
+    else:
+        check("ffprobe_readable", False, "Skipped: video file missing")
+
     streams = info.get("streams", [])
     video_streams = [s for s in streams if s.get("codec_type") == "video"]
     audio_streams = [s for s in streams if s.get("codec_type") == "audio"]

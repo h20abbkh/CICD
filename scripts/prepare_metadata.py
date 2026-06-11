@@ -12,6 +12,7 @@ Writes output/video/metadata.json with:
 
 import os
 import sys
+import json
 from datetime import datetime, timezone
 from pathlib import Path
 
@@ -32,7 +33,14 @@ YOUTUBE_EDUCATION_CATEGORY = "27"
 
 
 def format_chapters_text(chapters: list) -> str:
-    return "\n".join(f"{ch['start_formatted']}  {ch['title']}" for ch in chapters)
+    items = []
+    for ch in chapters:
+        if not isinstance(ch, dict):
+            continue
+        start = ch.get("start_formatted", "0:00")
+        title = ch.get("title", "Untitled")
+        items.append(f"{start}  {title}")
+    return "\n".join(items) if items else "0:00  Intro"
 
 
 def build_description(script: dict) -> str:
@@ -40,7 +48,10 @@ def build_description(script: dict) -> str:
     audience = script.get("audience", "")
     sections = "\n".join(
         f"  • {s.get('section', '')}" for s in script.get("outline", [])
+        if isinstance(s, dict) and s.get("section", "").strip()
     )
+    if not sections:
+        sections = "  • Main topic overview"
     chapters_text = format_chapters_text(script.get("chapters", []))
     cta = script.get("call_to_action", "Subscribe for more!")
 
@@ -73,7 +84,11 @@ def build_tags(script: dict) -> list:
 
     # Scene keywords
     for scene in script.get("scenes", []):
-        tags.extend(scene.get("keywords", []))
+        if not isinstance(scene, dict):
+            continue
+        keywords = scene.get("keywords", [])
+        if isinstance(keywords, list):
+            tags.extend(k for k in keywords if isinstance(k, str))
 
     # Deduplicate, preserve order
     seen = set()
@@ -95,7 +110,11 @@ def build_tags(script: dict) -> list:
 
 
 def main():
-    script = load_json(SCRIPT_PATH)
+    try:
+        script = load_json(SCRIPT_PATH)
+    except (FileNotFoundError, json.JSONDecodeError) as exc:
+        print(f"❌ Error reading {SCRIPT_PATH}: {exc}", file=sys.stderr)
+        sys.exit(1)
 
     title = (script.get("upload_title") or script.get("topic", "Untitled Video"))[:100]
     description = (script.get("upload_description") or build_description(script))[:5000]

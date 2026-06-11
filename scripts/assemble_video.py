@@ -49,7 +49,7 @@ def ffmpeg(*args, description=""):
     cmd = ["ffmpeg", "-y"] + list(args)
     if description:
         print(f"    {description}…")
-    result = subprocess.run(cmd, capture_output=True, text=True)
+    result = subprocess.run(cmd, capture_output=True, text=True, timeout=3600)
     if result.returncode != 0:
         print("ffmpeg stderr:\n" + result.stderr[-3000:])
         raise RuntimeError(f"ffmpeg failed (exit {result.returncode}): {' '.join(cmd[:8])}")
@@ -142,7 +142,7 @@ def create_scene_clip(image_path: str, audio_path: str, caption: str,
                       on_screen_text: str, output_mp4: str) -> float:
     duration = ffprobe_duration(audio_path)
     if duration <= 0:
-        duration = 90.0
+        raise RuntimeError(f"Invalid audio duration for {audio_path}")
 
     # Ken Burns: slow zoom-in (1.0 → 1.05) centred on the image
     frames = max(1, int(duration * FPS))
@@ -199,9 +199,13 @@ def create_scene_clip(image_path: str, audio_path: str, caption: str,
 
 def concatenate_clips(clips: list, output_mp4: str):
     list_file = output_mp4.replace(".mp4", "_list.txt")
+    allowed_prefix = os.path.abspath(SCENES_DIR)
     with open(list_file, "w") as f:
         for c in clips:
-            f.write(f"file '{os.path.abspath(c)}'\n")
+            abs_path = os.path.abspath(c)
+            if not abs_path.startswith(allowed_prefix + os.sep):
+                raise RuntimeError(f"Unsafe clip path outside scenes dir: {c}")
+            f.write(f"file '{abs_path}'\n")
 
     ffmpeg(
         "-f", "concat", "-safe", "0", "-i", list_file,

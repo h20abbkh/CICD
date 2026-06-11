@@ -56,6 +56,13 @@ jobs:
           path: output/audio/
           github-token: ${{ secrets.GITHUB_TOKEN }}
 
+      - name: Validate required artifacts
+        run: |
+          test -f output/script/script.json || (echo "❌ Missing script.json" && exit 1)
+          test -f output/script/script_readable.txt || (echo "❌ Missing script_readable.txt" && exit 1)
+          test -d output/assets/images || (echo "❌ Missing output/assets/images" && exit 1)
+          test -d output/audio || (echo "❌ Missing output/audio" && exit 1)
+
       - name: Assemble video
         run: python scripts/assemble_video.py
 
@@ -70,7 +77,7 @@ jobs:
         with:
           name: rendered-video-${{ inputs.planning_run_id }}
           path: output/video/
-          retention-days: 7   # keep 7 days — upload promptly
+          retention-days: 14
 
       - name: Print next step instructions
         run: |

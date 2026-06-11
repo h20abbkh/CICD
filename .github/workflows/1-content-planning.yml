@@ -17,7 +17,11 @@ on:
         description: "Target duration in minutes (30-60)"
         required: true
         default: "45"
-        type: string
+        type: choice
+        options:
+          - "30"
+          - "45"
+          - "60"
       tone:
         description: "Video tone (educational, entertaining, documentary, motivational)"
         required: true

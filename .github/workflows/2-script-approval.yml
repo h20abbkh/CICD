@@ -38,6 +38,13 @@ jobs:
           github-token: ${{ secrets.GITHUB_TOKEN }}
           run-id: ${{ inputs.planning_run_id }}
 
+      - name: Validate downloaded script artifact
+        run: |
+          if [ ! -f "output/script/script.json" ] || [ ! -f "output/script/script_readable.txt" ]; then
+            echo "❌ Missing script artifact files for run id: ${{ inputs.planning_run_id }}"
+            exit 1
+          fi
+
       - name: Show script summary
         run: |
           echo "===== SCRIPT SUMMARY ====="
@@ -53,6 +60,7 @@ jobs:
           echo "✅ Script approved. Proceeding to asset generation."
 
       - name: Re-upload approved script for downstream workflows
+        if: success()
         uses: actions/upload-artifact@v4
         with:
           name: approved-script-${{ inputs.planning_run_id }}
