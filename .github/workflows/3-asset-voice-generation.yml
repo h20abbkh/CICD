@@ -1,0 +1,109 @@
+name: "3 - Asset and Voice Generation"
+
+# Generates DALL-E images and TTS voiceover for every scene.
+# Both jobs run in parallel to save time.
+# Set USE_PLACEHOLDER_IMAGES=true (repo variable) to skip DALL-E and use
+# cheap coloured placeholders — useful for testing the pipeline end-to-end.
+on:
+  workflow_dispatch:
+    inputs:
+      planning_run_id:
+        description: "Run ID from workflow '1 - Content Planning'"
+        required: true
+        type: string
+
+jobs:
+  generate-visuals:
+    name: Generate Visual Assets (DALL-E)
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+    permissions:
+      contents: read
+      actions: read
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install dependencies
+        run: pip install -r requirements.txt
+
+      - name: Download approved script
+        uses: actions/download-artifact@v4
+        with:
+          name: approved-script-${{ inputs.planning_run_id }}
+          path: output/script/
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Generate visual assets
+        env:
+          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+          # Set to "true" in repo variables to use cheap coloured placeholders instead of DALL-E
+          USE_PLACEHOLDER_IMAGES: ${{ vars.USE_PLACEHOLDER_IMAGES || 'false' }}
+        run: python scripts/generate_assets.py
+
+      - name: Upload visual assets
+        uses: actions/upload-artifact@v4
+        with:
+          name: visual-assets-${{ inputs.planning_run_id }}
+          path: output/assets/
+          retention-days: 30
+
+  generate-voiceover:
+    name: Generate Voiceover (TTS)
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    permissions:
+      contents: read
+      actions: read
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install dependencies
+        run: pip install -r requirements.txt
+
+      - name: Install ffprobe (needed for audio duration)
+        run: sudo apt-get update && sudo apt-get install -y ffmpeg
+
+      - name: Download approved script
+        uses: actions/download-artifact@v4
+        with:
+          name: approved-script-${{ inputs.planning_run_id }}
+          path: output/script/
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Generate voiceover audio
+        env:
+          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+        run: python scripts/generate_voiceover.py
+
+      - name: Upload voiceover assets
+        uses: actions/upload-artifact@v4
+        with:
+          name: voiceover-assets-${{ inputs.planning_run_id }}
+          path: output/audio/
+          retention-days: 30
+
+      - name: Print next step instructions
+        run: |
+          echo "============================================================"
+          echo "Assets generated!"
+          echo "Planning Run ID: ${{ inputs.planning_run_id }}"
+          echo ""
+          echo "NEXT STEP:"
+          echo "Once both jobs are complete, trigger workflow"
+          echo "'4 - Video Assembly and Render' with:"
+          echo "  planning_run_id = ${{ inputs.planning_run_id }}"
+          echo "============================================================"
