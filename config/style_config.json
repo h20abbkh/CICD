@@ -19,6 +19,21 @@
       "description": "Photorealistic imagery with natural lighting",
       "dalle_keywords": "documentary photography, realistic, photographic, natural lighting, candid",
       "animation": "slow_pan"
+    },
+    "pixel_art": {
+      "description": "Retro pixel-art style with bold colours, ideal for gaming lore and pop culture",
+      "dalle_keywords": "pixel art, retro 16-bit style, bold colours, pixelated, video game aesthetic, vibrant",
+      "animation": "slide"
+    },
+    "2d_puppet": {
+      "description": "Flat 2D character puppet style with smooth movement, ideal for character evolution videos",
+      "dalle_keywords": "2D flat illustration, puppet-style character, clean vector art, bold outlines, animation-ready",
+      "animation": "slide"
+    },
+    "low_poly_3d": {
+      "description": "Low-polygon 3D renders with dramatic lighting, ideal for epic lore timelines",
+      "dalle_keywords": "low poly 3D, geometric facets, dramatic lighting, epic atmosphere, stylised render",
+      "animation": "ken_burns"
     }
   },
   "output": {

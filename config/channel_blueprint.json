@@ -1,0 +1,97 @@
+{
+  "channel": {
+    "name": "Pop Culture Lore & Evolution",
+    "niche": "Pop Culture Lore, Timelines, and Character Evolutions",
+    "categories": ["Gaming", "Movies", "Anime", "Comics"],
+    "target_audience": "Dedicated fanbases of major franchises (e.g., Minecraft, Marvel, GTA, Star Wars, Dragon Ball)",
+    "core_value": "Providing the ultimate, definitive deep-dive that saves viewers from researching complex storylines themselves.",
+    "monetization": "High Watch Time for YPP qualification, then AdSense via strategic mid-roll ad placement",
+    "kpis": {
+      "average_percentage_viewed_target": 40,
+      "ctr_target": 6,
+      "thumbnail_concept": "High-contrast character-driven; show a clear Before vs After or Level 1 vs Level 100 visual dynamic"
+    }
+  },
+
+  "video_formats": {
+    "timeline": {
+      "name": "The Complete Timeline (Lore Explainer)",
+      "description": "Chronological breakdown of a massive franchise or universe",
+      "title_formula": "The Entire {X}-Year Timeline of {Universe} Explained",
+      "example": "The Entire 20-Year Timeline of World of Warcraft Explained"
+    },
+    "character_evolution": {
+      "name": "Character Evolution (Before & After)",
+      "description": "Tracking the physical, psychological, and lore-based changes of an iconic character over decades",
+      "title_formula": "The Full Evolution of {Character}: {StartYear} to Present",
+      "example": "The Full Evolution of Kratos: 2005 to Present"
+    },
+    "animated_summary": {
+      "name": "Animated Summary",
+      "description": "Compressing massive book series, complex movie universes, or long game plots into one seamless animated long-form documentary",
+      "title_formula": "The Entire History of {Universe}, Every Detail Explained",
+      "example": "The Entire History of the Marvel Universe, Every Detail Explained"
+    }
+  },
+
+  "scripting_rules": {
+    "hook": {
+      "duration_seconds": 30,
+      "rule": "State the ultimate mystery or epic scale of the video in the first 30 seconds. No slow intros."
+    },
+    "chapter_duration_minutes": { "min": 5, "max": 8 },
+    "retention_spike": "Insert a dramatic question, a plot twist, or a 'Did you know?' fact at the END of every chapter to prevent viewers from clicking away.",
+    "structure": "0:00–0:30 = Hook, then divide into chronological chapters every 5–8 minutes",
+    "narration_style": "Cinematic, deep, and engaging. Warm and direct — the viewer is a dedicated fan."
+  },
+
+  "visual_rules": {
+    "preferred_styles": ["pixel_art", "2d_puppet", "low_poly_3d"],
+    "animation_technique": "Movement via panning, zooming, and character sliding. Avoid frame-by-frame lip-syncing.",
+    "scene_change_frequency_seconds": { "min": 5, "max": 7 },
+    "note": "Reusable modular asset library to support 30–60 minute runtime efficiently."
+  },
+
+  "audio_rules": {
+    "music_style": "Epic, copyright-free instrumental music",
+    "mood_mapping": {
+      "victory": "triumphant",
+      "dark_lore": "eerie",
+      "mystery": "tense",
+      "origin": "epic"
+    },
+    "voice_default": "onyx",
+    "voice_description": "Deep, cinematic narrator voice"
+  },
+
+  "seo_rules": {
+    "title_formulas": [
+      "The Entire History of {Universe}, Every Detail Explained",
+      "The Full Evolution of {Character}: {StartYear} to Present",
+      "The Complete {X}-Year Lore of {Universe} Explained",
+      "Every {Universe} Secret REVEALED",
+      "{Universe} Lore: The Ultimate {Duration}-Minute Deep Dive"
+    ],
+    "shorts_extraction": {
+      "count": { "min": 3, "max": 5 },
+      "duration_seconds": 60,
+      "criteria": "High-intensity moments: major revelations, shocking plot twists, dramatic character transformations",
+      "format": "vertical",
+      "cta": "Pinned comment linking back to the full video"
+    },
+    "chapters_in_description": true,
+    "youtube_category_id": "20",
+    "default_tags": [
+      "lore explained", "character evolution", "pop culture", "gaming lore",
+      "anime lore", "marvel lore", "full timeline", "deep dive", "lore video",
+      "story explained", "complete history", "franchise lore"
+    ]
+  },
+
+  "defaults": {
+    "duration_minutes": 45,
+    "tone": "cinematic documentary",
+    "style": "pixel_art",
+    "voice_type": "onyx"
+  }
+}

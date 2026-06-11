@@ -5,14 +5,18 @@ on:
   workflow_dispatch:
     inputs:
       topic:
-        description: "Video topic"
+        description: "Video topic (franchise, character, or universe)"
         required: true
         type: string
-      audience:
-        description: "Target audience"
+      video_format:
+        description: "Video format (defines structure and title formula)"
         required: true
-        default: "general public"
-        type: string
+        default: "timeline"
+        type: choice
+        options:
+          - timeline
+          - character_evolution
+          - animated_summary
       duration_minutes:
         description: "Target duration in minutes (30-60)"
         required: true
@@ -22,20 +26,10 @@ on:
           - "30"
           - "45"
           - "60"
-      tone:
-        description: "Video tone (educational, entertaining, documentary, motivational)"
-        required: true
-        default: "educational"
-        type: string
-      style:
-        description: "Visual style (minimalist, cinematic, cartoon, documentary)"
-        required: true
-        default: "minimalist"
-        type: string
       voice_type:
-        description: "OpenAI TTS voice"
+        description: "OpenAI TTS voice (onyx = deep cinematic, default for this channel)"
         required: true
-        default: "nova"
+        default: "onyx"
         type: choice
         options:
           - alloy
@@ -45,11 +39,11 @@ on:
           - nova
           - shimmer
       upload_title:
-        description: "YouTube title (leave blank to auto-generate from topic)"
+        description: "YouTube title override (leave blank to auto-generate using blueprint formula)"
         required: false
         type: string
       upload_description:
-        description: "YouTube description (leave blank to auto-generate)"
+        description: "YouTube description override (leave blank to auto-generate)"
         required: false
         type: string
 
@@ -77,10 +71,8 @@ jobs:
         env:
           OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
           VIDEO_TOPIC: ${{ inputs.topic }}
-          TARGET_AUDIENCE: ${{ inputs.audience }}
+          VIDEO_FORMAT: ${{ inputs.video_format }}
           DURATION_MINUTES: ${{ inputs.duration_minutes }}
-          VIDEO_TONE: ${{ inputs.tone }}
-          VISUAL_STYLE: ${{ inputs.style }}
           VOICE_TYPE: ${{ inputs.voice_type }}
           UPLOAD_TITLE: ${{ inputs.upload_title }}
           UPLOAD_DESCRIPTION: ${{ inputs.upload_description }}
