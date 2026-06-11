@@ -22,6 +22,9 @@ jobs:
     runs-on: ubuntu-latest
     environment: script-approval   # configure required reviewers in repo Settings > Environments
     timeout-minutes: 15
+    permissions:
+      contents: read
+      actions: read
 
     steps:
       - name: Checkout code

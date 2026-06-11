@@ -17,6 +17,9 @@ jobs:
     name: Generate Visual Assets (DALL-E)
     runs-on: ubuntu-latest
     timeout-minutes: 120
+    permissions:
+      contents: read
+      actions: read
 
     steps:
       - name: Checkout code
@@ -55,6 +58,9 @@ jobs:
     name: Generate Voiceover (TTS)
     runs-on: ubuntu-latest
     timeout-minutes: 60
+    permissions:
+      contents: read
+      actions: read
 
     steps:
       - name: Checkout code
